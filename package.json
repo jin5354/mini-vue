@@ -1,0 +1,27 @@
+{
+  "name": "mini-vue",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "webpack-dev-server --config test/webpack.config.dev.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jin5354/mini-vue.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jin5354/mini-vue/issues"
+  },
+  "homepage": "https://github.com/jin5354/mini-vue#readme",
+  "dependencies": {
+    "html-webpack-plugin": "^3.2.0",
+    "leaf-observable": "0.0.3",
+    "rollup": "^1.3.0",
+    "simp-html-parser": "^0.1.2",
+    "webpack-cli": "^3.2.3",
+    "webpack-dev-server": "^3.2.1"
+  }
+}
