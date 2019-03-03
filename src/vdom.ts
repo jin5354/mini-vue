@@ -1,76 +1,241 @@
-import parse, {ElementNode, TextNode, CommentNode} from 'simp-html-parser'
+export class VNode {
+  type
+  tag
+  data
+  children
+  text
+  elm
 
-export {parse}
-
-type VNode = ElementNode | TextNode | CommentNode
-
-// 使用递归构建真实 DOM
-export function createDOM(node: VNode) {
-  let $node: Node
-  if(node instanceof ElementNode) {
-    $node = document.createElement(node.tag)
-    node.children.forEach(e => {
-      $node.appendChild(createDOM(e))
-    })
-    updateProps($node, node.attrs, [])
+  constructor(
+    type?: 'Element' | 'Text' | 'Comment',
+    tag?: string,
+    data?: VNodeData,
+    children?: Array<VNode>,
+    text?: string,
+    elm?: Node
+  ) {
+    this.type = type
+    this.tag = tag
+    this.data = data
+    this.children = children
+    this.text = text
+    this.elm = elm
   }
-  if(node instanceof TextNode) {
-    $node = document.createTextNode(node.content)
-  }
-  if(node instanceof CommentNode) {
-    $node = document.createComment(node.content)
-  }
-  return $node
 }
 
-// 根据 virtual DOM 更新真实 DOM
-// 进行 DOM diff
-// 新增了节点，使用 appendChild(createDOM)
-// 移除了节点，使用 removeChild(old)
-// 更换了节点，使用 replaceChild(createDOM, old)
-// 对于 children，递归进去
-export function updateElement($parent: Node, newNode: VNode, oldNode?: VNode, index: number = 0) {
-  if(!oldNode) {
-    $parent.appendChild(createDOM(newNode))
-  }else if(!newNode) {
-    $parent.removeChild($parent.childNodes[index])
-  }else if(isChangedNode(newNode, oldNode)) {
-    $parent.replaceChild(createDOM(newNode), $parent.childNodes[index])
-  }else if(newNode instanceof ElementNode && oldNode instanceof ElementNode) {
-    let len1 = newNode.children.length
-    let len2 = oldNode.children.length
-    updateProps($parent.childNodes[index], newNode.attrs, oldNode.attrs)
-    for(let i = 0; i < len1 || i < len2; i++) {
-      updateElement($parent.childNodes[index], newNode.children[i], oldNode.children[i], i)
+// 创建节点
+export function createElementVNode(type, tag, data, children, text) {
+  return new VNode(type, tag, data, children, text)
+}
+
+// 创建注释节点
+export function createCommentVNode(str: string) {
+  let node = new VNode('Comment')
+  node.data = {}
+  node.text = str
+  return node
+}
+
+// 创建空白注释节点
+export function createEmptyVNode() {
+  return createCommentVNode('')
+}
+
+// 创建文本节点
+export function createTextVNode(str: string) {
+  let node = new VNode('Text')
+  node.data = {}
+  node.text = str
+  return node
+}
+
+// patch 入口
+// 3种情况：
+// old 为 dom 元素，为首次初始化，
+// old 为 undefined，为组件初始化，没指定 mount 元素
+// old 为 vnode，为已存在 vnode 的更新
+
+export function patch(newVNode, old) {
+  console.log('newVnode:', newVNode)
+  if(old.nodeType === 1) {
+    console.log('进入patch：mount', newVNode, old)
+    createDOM(newVNode)
+    old.parentElement.replaceChild(newVNode.elm, old)
+  }else if(!old){
+    console.log('进入patch: 组件 init', newVNode, old)
+  }else {
+    if(isSameVNode(newVNode, old)) {
+      console.log('进入patch：更新:patchVNode', newVNode, old)
+      patchVNode(newVNode, old)
+    }else {
+      console.log('进入patch：更新:替换', newVNode, old)
+      createDOM(newVNode)
+      old.elm.parentElement.replaceChild(newVNode.elm, old.elm)
     }
   }
 }
 
-// 判断 node 是否相同
-// 如果 node 类型不同，一定不同
-// 如果都是 ElementNode，判断 tag
-// 如果都是 TextNode 或者 CommentNode，判断 content
-function isChangedNode(node1: VNode, node2: VNode): boolean {
-  if(node1.constructor.name !== node2.constructor.name) {
-    return true
-  }else if(node1 instanceof ElementNode) {
-    return node1.tag !== (<ElementNode>node2).tag
-  }else if(node1 instanceof TextNode || node1 instanceof CommentNode) {
-    return node1.content !== (<TextNode|CommentNode>node2).content
+// 值得比较，深入diff
+export function patchVNode(newVNode: VNode, oldVNode: VNode) {
+  // 值得比较的情况下，沿用之前的 dom 元素
+  let elm = newVNode.elm = oldVNode.elm
+
+  if(newVNode === oldVNode) {
+    return
   }
-  return false
+  if((newVNode.type === 'Text' && oldVNode.type === 'Text') || (newVNode.type === 'Comment' && oldVNode.type === 'Comment')) {
+    elm.textContent = newVNode.text
+    return
+  }
+  if(newVNode.type === 'Element' && oldVNode.type === 'Element') {
+    updateProps(elm, newVNode.data.attrs, oldVNode.data.attrs)
+    if(newVNode.children.length && !oldVNode.children.length) {
+      newVNode.children.forEach(vnode => {
+        createDOM(vnode)
+        elm.appendChild(vnode.elm)
+      })
+    }else if(!newVNode.children.length && oldVNode.children.length) {
+      while (elm.firstChild) {
+        elm.removeChild(elm.firstChild)
+      }
+    }else if(newVNode.children.length && oldVNode.children.length) {
+      updateChildren(elm, newVNode.children, oldVNode.children)
+    }
+  }
 }
 
+// dom patch 算法
+export function updateChildren(parentElm, newChildren, oldChildren) {
+  let oldStartIndex = 0
+  let newStartIndex = 0
+  let oldEndIndex = oldChildren.length - 1
+  let newEndIndex = newChildren.length - 1
+
+  let newStartVNode = newChildren[0]
+  let oldStartVNode = oldChildren[0]
+  let newEndVNode = newChildren[newEndIndex]
+  let oldEndVNode = oldChildren[oldEndIndex]
+
+  let oldKeyMap
+
+  while(oldStartIndex <= oldEndIndex && newStartIndex < newEndIndex) {
+    // 如果遇到空 VNode，向前进一位
+    if(!oldStartVNode) {
+      oldStartIndex++
+      oldStartVNode = oldChildren[oldStartIndex]
+    }else if(!oldEndVNode) {
+      oldEndIndex--
+      oldEndVNode = oldChildren[oldEndIndex]
+    }else if(!newStartVNode) {
+      newStartIndex++
+      newStartVNode = newChildren(newStartIndex)
+    }else if(!newEndVNode) {
+      newEndIndex--
+      newEndVNode = newChildren[newEndIndex]
+    }else if(isSameVNode(newStartVNode, oldStartVNode)) {
+      // 新节点数组的开头和旧节点数组的开头 same
+      // 进行 patch，随后 index 前进
+      patchVNode(newStartVNode, oldStartVNode)
+      oldStartIndex++
+      newStartIndex++
+      oldStartVNode = oldChildren[oldStartIndex]
+      newStartVNode = newChildren[newStartIndex]
+    }else if(isSameVNode(newEndVNode, oldEndVNode)) {
+      // 新节点数组的结尾和旧节点数组的结尾 same
+      // 进行 patch，随后 index 前进
+      patchVNode(newEndVNode, oldEndVNode)
+      newEndIndex--
+      oldEndIndex--
+      newEndVNode = newChildren[newEndIndex]
+      oldEndVNode = oldChildren[oldEndIndex]
+    }else if(isSameVNode(newStartVNode, oldEndVNode)) {
+      // 新节点数组的开头和旧节点数组的结尾 same
+      // 认为旧节点向前移动
+      // 进行 patch，将旧节点结尾 dom 移至此时旧节点开头 dom 之前，随后 index 前进
+      patchVNode(newStartVNode, oldEndVNode)
+      parentElm.insertBefore(oldEndVNode.el, oldStartVNode.elm)
+      newStartIndex++
+      oldEndIndex--
+      newStartVNode = newChildren[newStartIndex]
+      oldEndVNode = oldChildren[oldEndIndex]
+    }else if(isSameVNode(newEndVNode, oldStartVNode)) {
+      // 新节点数组的结尾和旧节点数组的开头 same
+      // 认为旧节点向后移动
+      // 进行 patch，将旧节点开头 dom 移至此时旧节点结尾 dom 之后，随后 index 前进
+      patchVNode(newEndVNode, oldStartVNode)
+      parentElm.insertBefore(oldStartVNode, oldEndVNode.elm.nextsibling)
+      newEndIndex--
+      oldStartIndex++
+      newEndVNode = newChildren[newEndIndex]
+      oldStartVNode = oldChildren[oldStartIndex]
+    }else {
+      // 进入靠 key 的比较
+      if(!oldKeyMap) {
+        // 如果没有 map 先按照 oldChildren 生成 key map
+        for(let i = oldStartIndex; i < oldEndIndex; i++) {
+          let key = oldChildren[i].data.key
+          if(key) {
+            oldKeyMap[key] = i
+          }
+        }
+      }
+
+      // 检查当前 newStartVNode 有没有命中 keymap
+      let idxInOld = oldKeyMap[newStartVNode.data.key]
+      if(idxInOld && isSameVNode(oldChildren[idxInOld], newStartVNode)) {
+        // 发现目标。类同与上文的 newStart 与 oldEnd 对比。将 old 目标的 dom 移动到 oldStart 之前。
+        patchVNode(newStartVNode, oldChildren[idxInOld])
+        parentElm.insertBefore(oldChildren[idxInOld].elm, oldStartVNode.elm)
+      }else {
+        // 未发现目标
+        // 新创建 newStartVNode dom，并放置在 oldStartVNode dom 的前面
+        createDOM(newStartVNode)
+        parentElm.insertBefore(newStartVNode.elm, oldStartVNode.elm)
+      }
+
+      newStartIndex++
+      newStartVNode = newChildren[newStartIndex]
+    }
+  }
+
+  // 结束
+  // 如果是 old 先遍历完，认为 [newStartIndex, newEndIndex] 之间的元素为新增元素，统一放到 newEndIndex+1 dom 的前面去
+  // 如果是 new 先遍历完，认为 [oldStartIndex, oldEndIndex] 之间的元素为删除元素，统一删了
+  if(oldStartIndex > oldEndIndex) {
+    for(let i = newStartIndex; i <= newEndIndex; i++) {
+      createDOM(newChildren[i])
+      parentElm.insertBefore(newChildren[i].elm, newChildren[newEndIndex + 1].elm)
+    }
+  }else if(newStartIndex > newEndIndex) {
+    for(let i = oldStartIndex; i <= oldEndIndex; i++) {
+      parentElm.removeChild(oldChildren[i].elm)
+    }
+  }
+}
+
+// 根据 VNode 创建真实 dom，并附着在 VNode.elm 属性上
+export function createDOM(node: VNode) {
+  let $node: Node
+  if(node.type === 'Element') {
+    $node = document.createElement(node.tag)
+    node.children.forEach(e => {
+      $node.appendChild(createDOM(e))
+    })
+    updateProps($node, node.data.attrs, [])
+  }
+  if(node.type === 'Text') {
+    $node = document.createTextNode(node.text)
+  }
+  if(node.type === 'Comment') {
+    $node = document.createComment(node.text)
+  }
+  node.elm = $node
+  return $node
+}
+
+// 更新 props
 function updateProps($dom, newProps, oldProps): void {
-  let newPropsMap = {}
-  newProps.forEach(prop => {
-    newPropsMap[prop.name] = prop.value
-  })
-  let oldPropsMap = {}
-  oldProps.forEach(prop => {
-    oldPropsMap[prop.name] = prop.value
-  })
-  let props = Object.assign({}, newPropsMap, oldPropsMap)
+  let props = Object.assign({}, newProps, oldProps)
   Object.keys(props).forEach(name => {
     if(!oldProps[name]) {
       setProp($dom, name, props[name])
@@ -107,4 +272,12 @@ function removeProp($dom, name, value) {
 
 function isCustomProp(name) {
   return false
+}
+
+// 判断两个 VNode 是否有比较的价值
+// 如果发生巨变，比如 tag 都变了，直接替换，不再深入仔细去 diff
+export function isSameVNode(newVNode: VNode, oldVNode: VNode) {
+  return newVNode.data.key === oldVNode.data.key &&
+    newVNode.type === oldVNode.type &&
+    newVNode.tag === oldVNode.tag
 }
