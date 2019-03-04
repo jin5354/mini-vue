@@ -10,11 +10,11 @@ let app = new MiniVue({
       arr: ['上海', '杭州', '北京', '深圳']
     }
   },
-  template: `<div class="container" v-show="show">
+  template: `<div class="container">
     <!-- test -->
-    <button v-on="clickHandler">click me</button>
-    <ul :class="testClass">
-      <li v-for="city in arr" :key="city">{{city}}</li>
+    <button v-on:click="clickHandler">click me</button>
+    <ul :class="testClass" v-if="show">
+      <li v-for="city in arr" >{{city}}</li>
     </ul>
   </div>`,
   mounted() {
@@ -23,13 +23,19 @@ let app = new MiniVue({
   },
   methods: {
     clickHandler() {
-      alert('pop!')
+      alert(`pop! ${this.arr.join(',')}`)
     }
   }
 })
 
 console.log(app)
 setTimeout(() => {
-  app.arr.splice(1, 0, '广州')
-}, 5000)
+  app.arr[2] = '广州'
+  // setTimeout(() => {
+  //   app.testClass = 'dynamic-class-changed'
+  //   setTimeout(() => {
+  //     app.show = false
+  //   }, 2000)
+  // }, 3000)
+}, 3000)
 

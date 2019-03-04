@@ -168,8 +168,8 @@ function processAttrs(nodeData, attrMap) {
     }else if(k === 'ref') {
       nodeData.ref = attrMap[k]
     }else if(k.startsWith('v-')) {
-      if(k.slice(2) === 'on') {
-        nodeData.events[k.slice(2)] = attrMap[k]
+      if(k.slice(2, 5) === 'on:') {
+        nodeData.events[k.slice(5)] = attrMap[k]
       }else {
         nodeData.directives[k.slice(2)] = attrMap[k]
       }

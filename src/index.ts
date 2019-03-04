@@ -10,6 +10,25 @@ export default class MiniVue {
     this.$options = options
     this.$data = options.data()
 
+    this._init()
+  }
+
+  private _init() {
+    this.initRender()
+    this.initState()
+
+    // 如果传入了 el， 就直接挂载，否则等待用户手动调用 .$mount
+    if(this.$options.el) {
+      this.$mount(this.$options.el)
+    }
+  }
+
+  private initRender() {
+    // 编译模板
+    compile(this)
+  }
+
+  private initState() {
     // data 数据代理
     Object.keys(this.$data).forEach(key => {
       this._dataProxy(key)
@@ -18,12 +37,11 @@ export default class MiniVue {
     // 数据响应化
     observify(this.$data)
 
-    // 编译模板
-    compile(this)
-
-    // 如果传入了 el， 就直接挂载，否则等待用户手动调用 .$mount
-    if(options.el) {
-      this.$mount(options.el)
+    // methods 放 vm 上
+    if(this.$options.methods) {
+      for(let method in this.$options.methods) {
+        this[method] = this.$options.methods[method].bind(this)
+      }
     }
   }
 

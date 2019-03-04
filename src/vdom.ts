@@ -84,11 +84,15 @@ export function patchVNode(newVNode: VNode, oldVNode: VNode) {
     return
   }
   if((newVNode.type === 'Text' && oldVNode.type === 'Text') || (newVNode.type === 'Comment' && oldVNode.type === 'Comment')) {
-    elm.textContent = newVNode.text
+    if(elm.textContent !== newVNode.text) {
+      console.log(elm, `patch 修改：修改文字, ${elm.textContent} -> ${newVNode.text}`)
+      elm.textContent = newVNode.text
+    }
     return
   }
   if(newVNode.type === 'Element' && oldVNode.type === 'Element') {
     updateProps(elm, newVNode.data.attrs, oldVNode.data.attrs)
+    updateEvents(elm, newVNode.data.events, oldVNode.data.events)
     if(newVNode.children.length && !oldVNode.children.length) {
       newVNode.children.forEach(vnode => {
         createDOM(vnode)
@@ -118,7 +122,7 @@ export function updateChildren(parentElm, newChildren, oldChildren) {
 
   let oldKeyMap
 
-  while(oldStartIndex <= oldEndIndex && newStartIndex < newEndIndex) {
+  while(oldStartIndex <= oldEndIndex && newStartIndex <= newEndIndex) {
     // 如果遇到空 VNode，向前进一位
     if(!oldStartVNode) {
       oldStartIndex++
@@ -171,8 +175,9 @@ export function updateChildren(parentElm, newChildren, oldChildren) {
     }else {
       // 进入靠 key 的比较
       if(!oldKeyMap) {
+        oldKeyMap = {}
         // 如果没有 map 先按照 oldChildren 生成 key map
-        for(let i = oldStartIndex; i < oldEndIndex; i++) {
+        for(let i = oldStartIndex; i <= oldEndIndex; i++) {
           let key = oldChildren[i].data.key
           if(key) {
             oldKeyMap[key] = i
@@ -192,6 +197,7 @@ export function updateChildren(parentElm, newChildren, oldChildren) {
         // 未发现目标
         // 新创建 newStartVNode dom，并放置在 oldStartVNode dom 的前面
         createDOM(newStartVNode)
+        console.log('创建新节点:', newStartVNode.elm)
         parentElm.insertBefore(newStartVNode.elm, oldStartVNode.elm)
       }
 
@@ -206,10 +212,12 @@ export function updateChildren(parentElm, newChildren, oldChildren) {
   if(oldStartIndex > oldEndIndex) {
     for(let i = newStartIndex; i <= newEndIndex; i++) {
       createDOM(newChildren[i])
+      console.log('创建新节点:', newChildren[i].elm)
       parentElm.insertBefore(newChildren[i].elm, newChildren[newEndIndex + 1].elm)
     }
   }else if(newStartIndex > newEndIndex) {
     for(let i = oldStartIndex; i <= oldEndIndex; i++) {
+      console.log('移除旧节点:', oldChildren[i].elm)
       parentElm.removeChild(oldChildren[i].elm)
     }
   }
@@ -223,7 +231,8 @@ export function createDOM(node: VNode) {
     node.children.forEach(e => {
       $node.appendChild(createDOM(e))
     })
-    updateProps($node, node.data.attrs, [])
+    updateProps($node, node.data.attrs, {})
+    updateEvents($node, node.data.events, {})
   }
   if(node.type === 'Text') {
     $node = document.createTextNode(node.text)
@@ -240,10 +249,13 @@ function updateProps($dom, newProps, oldProps): void {
   let props = Object.assign({}, newProps, oldProps)
   Object.keys(props).forEach(name => {
     if(!oldProps[name]) {
-      setProp($dom, name, props[name])
+      console.log($dom, `设置新 prop, ${name}: ${newProps[name]}`)
+      setProp($dom, name, newProps[name])
     }else if(!newProps[name]) {
-      removeProp($dom, name, props[name])
+      console.log($dom, `移除 prop, ${name}: ${oldProps[name]}`)
+      removeProp($dom, name, oldProps[name])
     }else if(newProps[name] !== oldProps[name]) {
+      console.log($dom, `替换 prop, ${name}: ${oldProps[name]} -> ${newProps[name]}`)
       removeProp($dom, name, oldProps[name])
       setProp($dom, name, newProps[name])
     }
@@ -275,6 +287,33 @@ function removeProp($dom, name, value) {
 function isCustomProp(name) {
   return false
 }
+
+// 更新 events
+function updateEvents($dom, newEvents, oldEvents): void {
+  let events = Object.assign({}, newEvents, oldEvents)
+  Object.keys(events).forEach(name => {
+    if(!oldEvents[name]) {
+      console.log($dom, `绑定新 event, ${name}: ${newEvents[name]}`)
+      addEvent($dom, name, newEvents[name])
+    }else if(!newEvents[name]) {
+      console.log($dom, `移除 event, ${name}: ${oldEvents[name]}`)
+      removeEvent($dom, name, oldEvents[name])
+    }else {
+      console.log($dom, `替换 event, ${name}: ${oldEvents[name]} -> ${newEvents[name]}`)
+      removeEvent($dom, name, oldEvents[name])
+      addEvent($dom, name, newEvents[name])
+    }
+  })
+}
+
+function addEvent($dom, name ,cb) {
+  $dom.addEventListener(name, cb)
+}
+
+function removeEvent($dom, name, cb) {
+  $dom.removeEventListener(name, cb)
+}
+
 
 // 判断两个 VNode 是否有比较的价值
 // 如果发生巨变，比如 tag 都变了，直接替换，不再深入仔细去 diff

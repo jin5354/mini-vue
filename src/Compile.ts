@@ -106,7 +106,7 @@ function genData(el: ASTElement): string {
     data += `attrs: ${genProps(el.data.attrs)},`
   }
   if(el.data.events) {
-    data += `attrs: ${genProps(el.data.attrs)},`
+    data += `events: ${genEvents(el.data.events)},`
   }
   data += '}'
   return data
@@ -114,7 +114,7 @@ function genData(el: ASTElement): string {
 
 // 生成 VNode 的 data 的 attr 部分
 function genProps(attrs): string {
-  let props = `{${
+  return `{${
     Object.keys(attrs).map(key => {
       if(key.startsWith(':')) {
         return `${key.slice(1)}: ${attrs[key]},`
@@ -123,7 +123,14 @@ function genProps(attrs): string {
       }
     }).join('')
   }}`
-  return props
+}
+
+function genEvents(events): string {
+  return `{${
+    Object.keys(events).map(key => {
+      return `${key}: ${events[key]}`
+    })
+  }}`
 }
 
 function genChildren(el: ASTElement): string {
