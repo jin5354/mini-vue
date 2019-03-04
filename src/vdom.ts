@@ -186,6 +186,8 @@ export function updateChildren(parentElm, newChildren, oldChildren) {
         // 发现目标。类同与上文的 newStart 与 oldEnd 对比。将 old 目标的 dom 移动到 oldStart 之前。
         patchVNode(newStartVNode, oldChildren[idxInOld])
         parentElm.insertBefore(oldChildren[idxInOld].elm, oldStartVNode.elm)
+        // 在 oldChildren 中移除被移动的 key VNode，防止之后被再次比较。
+        oldChildren[idxInOld] = null
       }else {
         // 未发现目标
         // 新创建 newStartVNode dom，并放置在 oldStartVNode dom 的前面
