@@ -31,7 +31,6 @@ interface ASTElement {
   text: string,
   data: ASTElementData | null,
   parent: ASTElement | ASTRoot,
-  expression: string,
   ifProcessed?: boolean,
   forProcessed?: boolean
 }

@@ -1,7 +1,6 @@
 const START_TAG_REG = /^<([^<>\s\/]+)((\s+[^=>\s]+(\s*=\s*((\"[^"]*\")|(\'[^']*\')|[^>\s]+))?)*)\s*\/?\s*>/m
 const END_TAG_REG = /^<\/([^>\s]+)[^>]*>/m
 const ATTRIBUTE_REG = /([^=\s]+)(\s*=\s*((\"([^"]*)\")|(\'([^']*)\')|[^>\s]+))?/gm
-const TEXT_EXP_REG = /\{\{((?:.|\n)+?)\}\}/g
 
 // todo
 // optimize, 标记静态节点，标记静态根
@@ -13,10 +12,8 @@ export class ASTElement {
   text
   data
   parent
-  expression
   ifProcessed = false
   forProcessed = false
-
 
   constructor(
     type: 'Element' | 'Text' | 'Comment',
@@ -35,10 +32,6 @@ export class ASTElement {
 
     if(!(this.parent instanceof ASTElement)) {
       this.parent = null
-    }
-
-    if(this.type === 'Text') {
-      this.expression = parseText(this.text)
     }
   }
 }
@@ -179,15 +172,4 @@ function processAttrs(nodeData, attrMap) {
   })
 
   nodeData.rawAttrs = attrMap
-}
-
-// 解析文本内容中的 {{}}，并转换为 _s 表达式
-function parseText(text) {
-  let result = text.match(TEXT_EXP_REG)
-  if(!result) {
-    return null
-  }
-  return text.replace(TEXT_EXP_REG, (match) => {
-    return `_s(${match.slice(2, match.length - 2)})`
-  })
 }

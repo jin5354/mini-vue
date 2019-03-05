@@ -59,7 +59,7 @@ function genElement(el: ASTElement): string {
       }
     }
     case('Text'): {
-      return el.expression || `_s(\`${el.text}\`)`
+      return genText(el.text)
     }
     case('Comment'): {
       return `_m(\`${el.text}\`)`
@@ -82,6 +82,19 @@ function genFor(el: ASTElement): string {
       return ${genElement(el)}
     })
   })()`
+}
+
+const TEXT_EXP_REG = /\{\{((?:.|\n)+?)\}\}/g
+
+// 解析文本内容中的 {{}}，并转换为 _s 表达式
+function genText(text: string): string {
+  let result = text.match(TEXT_EXP_REG)
+  if(!result) {
+    return `_s(\`${text}\`)`
+  }
+  return text.replace(TEXT_EXP_REG, (match) => {
+    return `_s(${match.slice(2, match.length - 2)})`
+  })
 }
 
 // 生成 VNode 的 data 部分
