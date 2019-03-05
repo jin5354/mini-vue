@@ -1,10 +1,11 @@
-import compile from './Compile'
+import {mountComponent} from './compile'
+import {patch} from './vdom'
 import {observify, watch} from 'leaf-observable'
 
 export default class MiniVue {
   $data: any
   $options: any
-  $mount: Function
+  _patch = patch
 
   constructor(options) {
     this.$options = options
@@ -14,18 +15,12 @@ export default class MiniVue {
   }
 
   private _init() {
-    this.initRender()
     this.initState()
 
     // 如果传入了 el， 就直接挂载，否则等待用户手动调用 .$mount
     if(this.$options.el) {
       this.$mount(this.$options.el)
     }
-  }
-
-  private initRender() {
-    // 编译模板
-    compile(this)
   }
 
   private initState() {
@@ -37,7 +32,7 @@ export default class MiniVue {
     // 数据响应化
     observify(this.$data)
 
-    // methods 放 vm 上
+    // initMethods 放 vm 上
     if(this.$options.methods) {
       for(let method in this.$options.methods) {
         this[method] = this.$options.methods[method].bind(this)
@@ -57,5 +52,9 @@ export default class MiniVue {
         this.$data[key] = newVal
       }
     })
+  }
+
+  $mount(el) {
+    return mountComponent(this, el)
   }
 }

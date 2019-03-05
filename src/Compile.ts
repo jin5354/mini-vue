@@ -2,20 +2,11 @@ import {watch} from 'leaf-observable'
 import {VNode, createElementVNode, createEmptyVNode, createTextVNode, patch, createCommentVNode} from './vdom'
 import parse from './parser'
 
-
-export default function compile(vm) {
-  // 添加 $mount 方法
-  vm.$mount = (el) => {
-    return mountComponent(vm, el)
-  }
+export function mountComponent(vm, el) {
+  vm.$el = document.querySelector(el)
 
   installRenderHelpers(vm)
-
   vm.$options.render = vm.$options.render || compileToFunctions(parse(vm.$options.template)[0])
-}
-
-function mountComponent(vm, el) {
-  vm.$el = document.querySelector(el)
 
   // 在 mount 阶段使用 watcher，做到 vm 中的 data 有变化时，自动触发更新
   // 此处直接将更新操作放在 exp 中。 callback 设为空。使得第一次触发也进行 dom 更新。
@@ -152,5 +143,4 @@ function installRenderHelpers(vm) {
   vm._e = createEmptyVNode
   vm._s = createTextVNode
   vm._m = createCommentVNode
-  vm._patch = patch
 }
