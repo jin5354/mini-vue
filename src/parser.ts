@@ -16,7 +16,7 @@ export class ASTElement {
   forProcessed = false
 
   constructor(
-    type: 'Element' | 'Text' | 'Comment',
+    type: 'Element' | 'Text' | 'Comment' | 'Component',
     children: ASTElement[],
     tag: string,
     text: string,
@@ -29,23 +29,19 @@ export class ASTElement {
     this.text = text
     this.data = data
     this.parent = parent
-
-    if(!(this.parent instanceof ASTElement)) {
-      this.parent = null
-    }
   }
 }
 
-export default function parse(source: string): ASTElement[] {
+export default function parse(source: string, components): ASTElement[] {
 
-  let result: ASTRoot = {
+  let result = {
     children: []
   }
   let stack = []
-  let zone: any = null
+  let parent: any = null
 
   stack.push(result)
-  zone = result
+  parent = result
 
   while(source.length > 0) {
 
@@ -56,7 +52,7 @@ export default function parse(source: string): ASTElement[] {
       let endIndex = source.indexOf('-->')
       if(endIndex !== -1) {
         // console.log(`发现注释节点${source.substring(4, endIndex)}`)
-        zone.children.push(new ASTElement('Comment', [], '', source.substring(4, endIndex), {}, zone))
+        parent.children.push(new ASTElement('Comment', [], '', source.substring(4, endIndex), {}, parent))
         source = source.substring(endIndex + 3)
         continue
       }
@@ -71,9 +67,9 @@ export default function parse(source: string): ASTElement[] {
       let result = tag.match(END_TAG_REG)
       let name = result[1]
 
-      if(name === zone.tag) {
+      if(name === parent.tag) {
         stack.pop()
-        zone = stack[stack.length - 1]
+        parent = stack[stack.length - 1]
         // console.log('闭合，出栈')
       }else {
         throw new Error('闭合标签对不上，html 语法出错')
@@ -117,12 +113,17 @@ export default function parse(source: string): ASTElement[] {
       processAttrs(nodeData, attrMap)
 
       // console.log(`发现元素节点${tag}`)
-      let element = new ASTElement('Element', [], tagName, '', nodeData, zone)
-      zone.children.push(element)
+      let element
+      if(Object.keys(components || {}).indexOf(tagName) !== -1) {
+        element = new ASTElement('Component', [], tagName, '', nodeData, parent)
+      }else {
+        element = new ASTElement('Element', [], tagName, '', nodeData, parent)
+      }
+      parent.children.push(element)
       // 如果不是自闭合 tag，入栈
       if(!tag.endsWith('/>')) {
         stack.push(element)
-        zone = element
+        parent = element
       }
       source = right
       continue
@@ -132,22 +133,21 @@ export default function parse(source: string): ASTElement[] {
     // console.log('开始识别文字')
     let index = source.indexOf('<', 1)
     if(index == -1) {
-      if(zone.children[zone.children.length - 1] && zone.children[zone.children.length - 1].type === 'Text') {
-        zone.children[zone.children.length - 1].text += source
+      if(parent.children[parent.children.length - 1] && parent.children[parent.children.length - 1].type === 'Text') {
+        parent.children[parent.children.length - 1].text += source
       }else {
-        zone.children.push(new ASTElement('Text', [], '', source, {}, zone))
+        parent.children.push(new ASTElement('Text', [], '', source, {}, parent))
       }
       source = ''
     }else {
-      if(zone.children[zone.children.length - 1] && zone.children[zone.children.length - 1].type === 'Text') {
-        zone.children[zone.children.length - 1].text += source.substring(0, index)
+      if(parent.children[parent.children.length - 1] && parent.children[parent.children.length - 1].type === 'Text') {
+        parent.children[parent.children.length - 1].text += source.substring(0, index)
       }else {
-        zone.children.push(new ASTElement('Text', [], '', source.substring(0, index), {}, zone))
+        parent.children.push(new ASTElement('Text', [], '', source.substring(0, index), {}, parent))
       }
       source = source.substring(index)
     }
   }
-
   return result.children
 }
 

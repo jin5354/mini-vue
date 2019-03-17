@@ -14,6 +14,17 @@ export default class MiniVue {
     this._init()
   }
 
+  // static extend(extendOptions) {
+  //   const Super = this
+  //   const Sub = function(options) {
+  //     this._init()
+  //   }
+
+  //   Sub.prototype = Object.create(Super.prototype)
+  //   Sub.prototype.constructor = Sub
+  //   Sub.super = Super
+  // }
+
   private _init() {
     this.initState()
 

@@ -16,4 +16,4 @@ open `localhost:9093`
 - ✅compile
 - ✅vdom diff
 - lifecycle
-- component
+- ✅component

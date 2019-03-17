@@ -1,3 +1,5 @@
+import MiniVue from './index'
+
 export class VNode {
   type
   tag
@@ -5,13 +7,15 @@ export class VNode {
   children
   text
   elm
+  options
 
   constructor(
-    type?: 'Element' | 'Text' | 'Comment',
+    type?: 'Element' | 'Text' | 'Comment' | 'Component',
     tag?: string,
     data?: VNodeData,
     children?: Array<VNode>,
     text?: string,
+    options?: any,
     elm?: Node
   ) {
     this.type = type
@@ -20,6 +24,7 @@ export class VNode {
     this.children = children
     this.text = text
     this.elm = elm
+    this.options = options
   }
 }
 
@@ -47,6 +52,11 @@ export function createTextVNode(str: string) {
   node.data = {}
   node.text = str
   return node
+}
+
+// 创建组件节点
+export function createComponentVNode(type, tag, data, children, text, vm) {
+  return new VNode(type, tag, data, children, text, vm.$options.components[tag])
 }
 
 // patch 入口
@@ -239,6 +249,13 @@ export function createDOM(node: VNode) {
   }
   if(node.type === 'Comment') {
     $node = document.createComment(node.text)
+  }
+  if(node.type === 'Component') {
+    $node = document.createElement('div')
+    let $comNode = document.createElement('div')
+    $node.appendChild($comNode)
+    new MiniVue(node.options).$mount($comNode)
+    $node = $node.firstChild
   }
   node.elm = $node
   return $node

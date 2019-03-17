@@ -1,7 +1,11 @@
 import MiniVue from '../src/index'
+import com from './com.js'
 
 let app = new MiniVue({
   el: '#app',
+  components: {
+    com
+  },
   data() {
     return {
       text: '测试文本',
@@ -16,6 +20,7 @@ let app = new MiniVue({
     <ul :class="testClass" v-if="show">
       <li v-for="city in arr" >{{city}}</li>
     </ul>
+    <com></com>
   </div>`,
   mounted() {
     console.log('mounted')

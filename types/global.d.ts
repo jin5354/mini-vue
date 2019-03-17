@@ -20,12 +20,10 @@ interface ASTElementData {
   }
 }
 
-interface ASTRoot {
-  children: ASTElement[]
-}
+type ASTRoot = ASTElement[]
 
 interface ASTElement {
-  type: 'Element' | 'Text' | 'Comment',
+  type: 'Element' | 'Text' | 'Comment' | 'Component',
   children: ASTElement[],
   tag: string,
   text: string,
@@ -56,10 +54,12 @@ interface VNodeData {
 }
 
 interface VNode {
-  type?: 'Element' | 'Text' | 'Comment',
+  type?: 'Element' | 'Text' | 'Comment' | 'Component',
   tag?: string,
   data?: VNodeData,
   children?: Array<VNode>,
   text?: string,
-  elm?: Node
+  elm?: Node,
+  parent?: VNode,
+  options?: any
 }

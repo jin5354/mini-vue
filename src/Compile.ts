@@ -1,12 +1,16 @@
 import {watch} from 'leaf-observable'
-import {VNode, createElementVNode, createEmptyVNode, createTextVNode, patch, createCommentVNode} from './vdom'
+import {VNode, createElementVNode, createEmptyVNode, createTextVNode, patch, createCommentVNode, createComponentVNode} from './vdom'
 import parse from './parser'
 
 export function mountComponent(vm, el) {
-  vm.$el = document.querySelector(el)
+  if(typeof el === 'string') {
+    vm.$el = document.querySelector(el)
+  }else if(el.nodeType === 1){
+    vm.$el = el
+  }
 
   installRenderHelpers(vm)
-  vm.$options.render = vm.$options.render || compileToFunctions(parse(vm.$options.template)[0])
+  vm.$options.render = vm.$options.render || compileToFunctions(parse(vm.$options.template, vm.$options.components)[0])
 
   // 在 mount 阶段使用 watcher，做到 vm 中的 data 有变化时，自动触发更新
   // 此处直接将更新操作放在 exp 中。 callback 设为空。使得第一次触发也进行 dom 更新。
@@ -46,6 +50,10 @@ function compileToFunctions(ast: ASTElement) {
 
 function genElement(el: ASTElement): string {
   switch(el.type) {
+    case('Component'): {
+      let data = genData(el)
+      return `_o('Component', '${el.tag}', ${data}, undefined, undefined, this)`
+    }
     case('Element'): {
       if(el.data.directives.for && !el.forProcessed) {
         return genFor(el)
@@ -156,4 +164,5 @@ function installRenderHelpers(vm) {
   vm._e = createEmptyVNode
   vm._s = createTextVNode
   vm._m = createCommentVNode
+  vm._o = createComponentVNode
 }
